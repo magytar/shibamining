@@ -7,10 +7,10 @@ import Image from "next/image";
 import Img_logo from "./logo.png";
 
 const PLANOS = {
-	start: { nome: "Start", taxa: 0.33, icon: Star },
-	"vip+": { nome: "VIP+", taxa: 0.55, icon: Crown },
-	"vip++": { nome: "VIP++", taxa: 0.88, icon: Crown },
-	"vip+++": { nome: "VIP+++", taxa: 1.50, icon: Crown }
+	start: { nome: "Start", taxa: 0.89, icon: Star },
+	"vip+": { nome: "VIP+", taxa: 8.67, icon: Crown },
+	"vip++": { nome: "VIP++", taxa: 19.58, icon: Crown },
+	"vip+++": { nome: "VIP+++", taxa: 28.41, icon: Crown }
 };
 
 const SAQUE_MINIMO = 350000;
