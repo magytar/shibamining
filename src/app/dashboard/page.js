@@ -176,7 +176,7 @@ export default function Dashboard() {
 
 			saveInterval.current = setInterval(async () => {
 				await saveSaldoToDatabase();
-			}, 20000);
+			}, 18000);
 
 			timeInterval.current = setInterval(() => {
 				setMiningTime((prev) => prev + 1);
@@ -296,7 +296,7 @@ export default function Dashboard() {
 					<div className="flex items-center justify-between h-16">
 						<div className="flex items-center gap-3">
 							<div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-								<Image src={Img_logo} alt="Logo" width={70} height={70} className="r-10" />
+								<Image src={Img_logo} alt="Logo" width={70} height={70} className="" />
 							</div>
 							<div>
 								<h1 className="text-lg font-bold">SHIB Mining</h1>
