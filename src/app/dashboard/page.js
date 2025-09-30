@@ -7,10 +7,10 @@ import Image from "next/image";
 import Img_logo from "./logo.png";
 
 const PLANOS = {
-	start: { nome: "Start", taxa: 0.89, icon: Star },
-	"vip+": { nome: "VIP+", taxa: 8.67, icon: Crown },
-	"vip++": { nome: "VIP++", taxa: 19.58, icon: Crown },
-	"vip+++": { nome: "VIP+++", taxa: 28.41, icon: Crown }
+	start: { nome: "Start", taxa: 0.89, preco: "Grátis", icon: Star },
+	"vip+": { nome: "VIP+", taxa: 3.67, preco: "R$29,99", icon: Crown },
+	"vip++": { nome: "VIP++", taxa: 11.58, preco: "R$ 59,99", icon: Crown },
+	"vip+++": { nome: "VIP+++", taxa: 21.41, preco: "R$ 89,99", icon: Crown }
 };
 
 const SAQUE_MINIMO = 350000;
@@ -30,6 +30,10 @@ export default function Dashboard() {
 	const [enderecoCarteira, setEnderecoCarteira] = useState("");
 	const [processingSaque, setProcessingSaque] = useState(false);
 	const [menuOpen, setMenuOpen] = useState(false);
+	const [shibPrice, setShibPrice] = useState(0);
+	const [priceChange24h, setPriceChange24h] = useState(0);
+	const [totalSaquesRealizados, setTotalSaquesRealizados] = useState(0);
+	const [totalUsuarios, setTotalUsuarios] = useState(0);
 	
 	const miningInterval = useRef(null);
 	const saveInterval = useRef(null);
@@ -57,7 +61,6 @@ export default function Dashboard() {
 		
 		setSavingStatus("saving");
 		try {
-			// Usa a ref para pegar o valor mais atualizado
 			const saldoToSave = Number(saldoRef.current.toFixed(2));
 			
 			const { data: existing } = await supabase
@@ -82,7 +85,7 @@ export default function Dashboard() {
 				console.error("Erro ao salvar:", result.error);
 				setSavingStatus("error");
 			} else {
-				console.log("Saldo salvo:", saldoToSave); // Debug
+				console.log("Saldo salvo:", saldoToSave);
 				setSavingStatus("saved");
 				setTimeout(() => setSavingStatus("idle"), 2000);
 			}
@@ -115,10 +118,50 @@ export default function Dashboard() {
 					setSaldo(0);
 					setPlano("start");
 				}
+
+				// Buscar estatísticas
+				const { data: saquesData } = await supabase
+					.from("saques")
+					.select("amount")
+					.eq("email", user.email)
+					.eq("status", "completed");
+				
+				if (saquesData) {
+					const total = saquesData.reduce((acc, curr) => acc + curr.amount, 0);
+					setTotalSaquesRealizados(total);
+				}
+
+				// Buscar total de usuários
+				const { count } = await supabase
+					.from("saldos")
+					.select("*", { count: 'exact', head: true });
+				
+				if (count) {
+					setTotalUsuarios(count);
+				}
 			}
 			setLoading(false);
 		}
 		fetchUserAndSaldo();
+
+		// Buscar preço do SHIB
+		async function fetchShibPrice() {
+			try {
+				const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=shiba-inu&vs_currencies=usd&include_24hr_change=true');
+				const data = await response.json();
+				if (data['shiba-inu']) {
+					setShibPrice(data['shiba-inu'].usd);
+					setPriceChange24h(data['shiba-inu'].usd_24h_change || 0);
+				}
+			} catch (err) {
+				console.error("Erro ao buscar preço:", err);
+			}
+		}
+		fetchShibPrice();
+		
+		// Atualizar preço a cada 60 segundos
+		const priceInterval = setInterval(fetchShibPrice, 60000);
+		return () => clearInterval(priceInterval);
 	}, []);
 
 	useEffect(() => {
@@ -253,7 +296,7 @@ export default function Dashboard() {
 					<div className="flex items-center justify-between h-16">
 						<div className="flex items-center gap-3">
 							<div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-xl flex items-center justify-center">
-								<Image src={Img_logo} alt="Logo" width={40} height={40} />
+								<Image src={Img_logo} alt="Logo" width={70} height={70} className="r-10" />
 							</div>
 							<div>
 								<h1 className="text-lg font-bold">SHIB Mining</h1>
@@ -324,7 +367,23 @@ export default function Dashboard() {
 						</div>
 
 						{/* Stats Grid */}
-						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+						<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+							{/* Preço SHIB */}
+							<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+								<div className="flex items-center justify-between mb-4">
+									<div className="flex items-center gap-2">
+										<TrendingUp className={`w-5 h-5 ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+										<span className="text-sm text-zinc-400">Preço SHIB</span>
+									</div>
+								</div>
+								<p className="text-3xl font-bold mb-1">
+									${shibPrice > 0 ? shibPrice.toFixed(8) : '0.00000000'}
+								</p>
+								<p className={`text-xs font-medium ${priceChange24h >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+									{priceChange24h >= 0 ? '↑' : '↓'} {Math.abs(priceChange24h).toFixed(2)}% (24h)
+								</p>
+							</div>
+
 							<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
 								<div className="flex items-center justify-between mb-4">
 									<div className="flex items-center gap-2">
@@ -351,13 +410,37 @@ export default function Dashboard() {
 								<p className="text-xs text-zinc-500">SHIB minerado</p>
 							</div>
 
-							<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800 sm:col-span-2 lg:col-span-1">
+							<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
 								<div className="flex items-center gap-2 mb-4">
 									<Activity className="w-5 h-5 text-blue-500" />
 									<span className="text-sm text-zinc-400">Tempo Ativo</span>
 								</div>
 								<p className="text-3xl font-bold mb-1">{formatTime(miningTime)}</p>
 								<p className="text-xs text-zinc-500">HH:MM:SS</p>
+							</div>
+						</div>
+
+						{/* Estatísticas */}
+						<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
+							<h3 className="text-xl font-bold mb-6">Estatísticas</h3>
+							<div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+								<div className="text-center">
+									<p className="text-sm text-zinc-400 mb-2">Total Sacado</p>
+									<p className="text-2xl font-bold text-green-500">{formatNumber(totalSaquesRealizados.toFixed(2))}</p>
+									<p className="text-xs text-zinc-500 mt-1">SHIB</p>
+								</div>
+								<div className="text-center">
+									<p className="text-sm text-zinc-400 mb-2">Valor em USD</p>
+									<p className="text-2xl font-bold text-blue-500">
+										${shibPrice > 0 ? (saldo * shibPrice).toFixed(2) : '0.00'}
+									</p>
+									<p className="text-xs text-zinc-500 mt-1">Saldo atual</p>
+								</div>
+								<div className="text-center">
+									<p className="text-sm text-zinc-400 mb-2">Mineradores Ativos</p>
+									<p className="text-2xl font-bold text-purple-500">{formatNumber(totalUsuarios)}</p>
+									<p className="text-xs text-zinc-500 mt-1">Usuários</p>
+								</div>
 							</div>
 						</div>
 
@@ -396,7 +479,7 @@ export default function Dashboard() {
 						{/* Planos */}
 						<div className="bg-zinc-900 rounded-xl p-6 border border-zinc-800">
 							<h3 className="text-xl font-bold mb-6">Planos Disponíveis</h3>
-							<div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+							<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
 								{Object.entries(PLANOS).map(([key, planoInfo]) => {
 									const IconePlanoCard = planoInfo.icon;
 									const isAtivo = key === plano;
@@ -414,6 +497,9 @@ export default function Dashboard() {
 												<h4 className="font-semibold">{planoInfo.nome}</h4>
 												<div className="text-lg font-bold text-orange-500">
 													{planoInfo.taxa}<span className="text-xs text-zinc-500">/s</span>
+												</div>
+												<div className="text-sm font-medium text-zinc-400">
+													{planoInfo.preco}{key !== 'start' && '/semana'}
 												</div>
 												{isAtivo && (
 													<span className="text-xs bg-orange-500 text-white px-2 py-0.5 rounded-full">ATIVO</span>
@@ -478,7 +564,7 @@ export default function Dashboard() {
 									Disponível: {formatNumber(saldo.toFixed(0))} SHIB
 								</p>
 								<p className="text-xs text-zinc-500 mt-1">
-									Mínimo: {formatNumber(SAQUE_MINIMO)} SHIB | Máximo: {formatNumber(SAQUE_MAXIMO)} SHIB
+									Mínimo: {formatNumber(SAQUE_MINIMO)} SHIB | Máximo: {formatNumber(SAQUE_MAXIMO)} SHIB / Dia
 								</p>
 							</div>
 
