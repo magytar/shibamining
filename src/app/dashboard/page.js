@@ -34,9 +34,14 @@ export default function Dashboard() {
 	const miningInterval = useRef(null);
 	const saveInterval = useRef(null);
 	const timeInterval = useRef(null);
+	const saldoRef = useRef(saldo);
 	const router = useRouter();
 
 	const taxaMineracao = PLANOS[plano]?.taxa || 0.33;
+
+	useEffect(() => {
+		saldoRef.current = saldo;
+	}, [saldo]);
 
 	async function handleLogout() {
 		if (mining) {
@@ -52,7 +57,8 @@ export default function Dashboard() {
 		
 		setSavingStatus("saving");
 		try {
-			const saldoToSave = Number(saldo.toFixed(2));
+			// Usa a ref para pegar o valor mais atualizado
+			const saldoToSave = Number(saldoRef.current.toFixed(2));
 			
 			const { data: existing } = await supabase
 				.from("saldos")
@@ -76,6 +82,7 @@ export default function Dashboard() {
 				console.error("Erro ao salvar:", result.error);
 				setSavingStatus("error");
 			} else {
+				console.log("Saldo salvo:", saldoToSave); // Debug
 				setSavingStatus("saved");
 				setTimeout(() => setSavingStatus("idle"), 2000);
 			}
