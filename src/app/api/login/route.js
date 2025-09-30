@@ -2,7 +2,7 @@ import { supabase } from "@/lib/supabase";
 
 export async function POST(parms) {
     const { email, senha } = await parms.json();
-
+    
     const { data, error } = await supabase.auth.signInWithPassword({
         email: email,
         password: senha,
